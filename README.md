@@ -44,7 +44,8 @@ This project is authored and maintained by [xudianyang](http://www.phpboy.net/).
 
 [SplClassLoader Auto Complete](https://github.com/xudianyang/yaf.auto.complete/blob/master/SplClassLoader.php)
 
-```
+```php
+
 <?php
 class SplClassLoader
 {
