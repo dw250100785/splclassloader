@@ -633,7 +633,8 @@ PHP_METHOD(SplClassLoader, setFileExtension)
         obj->file_ext = estrndup(ext, ext_len);    
     }
     obj->file_ext_len = ext_len;
-    RETURN_TRUE;
+
+    RETURN_ZVAL(getThis(), 1, 0);
 } /* }}} */
 
 
