@@ -2,7 +2,7 @@
 
 ##PHP自动加载器
 
-最初的实现的PHP实现：
+最初的PHP实现：
 
 [https://gist.github.com/jwage/221634](https://gist.github.com/jwage/221634)
 
