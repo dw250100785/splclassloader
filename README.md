@@ -35,6 +35,12 @@
 	$./configure --with-php-config=/path/to/php-config
 	$make && make install
 	
+###ini配置
+
+	extension=splclassloader.so
+	splclassloader.ext=".php"
+	splclassloader.global_library=""
+
 ### 作者
 
 This project is authored and maintained by [xudianyang](http://www.phpboy.net/).
