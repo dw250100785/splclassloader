@@ -398,9 +398,18 @@ PHP_METHOD(SplClassLoader, __construct)
 
     obj = (splclassloader_object *) zend_object_store_get_object(getThis() TSRMLS_CC);
 
+    if (inc_path_len) {
+        obj->inc_path = estrndup(inc_path, inc_path_len);
+        obj->inc_path_len = inc_path_len;
+    }
+
+    if (ns == NULL || Z_TYPE_P(ns) == IS_NULL) {
+        return;
+    }
+
     if (IS_STRING == Z_TYPE_P(ns) && Z_STRLEN_P(ns)) {
-            splclassloader_register_namespace_single(obj, Z_STRVAL_P(ns), Z_STRLEN_P(ns) TSRMLS_CC);
-        }
+        splclassloader_register_namespace_single(obj, Z_STRVAL_P(ns), Z_STRLEN_P(ns) TSRMLS_CC);
+    }
 
     if (IS_ARRAY == Z_TYPE_P(ns)) {
         zval **ppval;
@@ -417,11 +426,6 @@ PHP_METHOD(SplClassLoader, __construct)
             }
 
         }
-    }
-
-    if (inc_path_len) {
-        obj->inc_path = estrndup(inc_path, inc_path_len);
-        obj->inc_path_len = inc_path_len;
     }
 }
 /* }}} */
