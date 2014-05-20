@@ -172,7 +172,7 @@ int splclassloader_is_local_namespace(char *ns, char *class_name, int len TSRMLS
     }
 #endif
     else {
-        prefix = class_name;
+        prefix = estrndup(class_name, len);
         prefix_len = len;
     }
 
@@ -316,8 +316,8 @@ static char *namespace_dir_separator(const char *namespace, int ns_len TSRMLS_DC
  */
 static int splclassloader_register_namespace_single(splclassloader_object *obj, char *namespace, int ns_len TSRMLS_DC)
 {
-    char *target;
-    uint len, flag = 0;
+    char *target, *pos, *prev;
+    uint len, flag = 0, last = 0;
 
     if (strstr(namespace, ",")) {
         target = namespace_dir_separator(namespace, ns_len TSRMLS_CC);
@@ -328,22 +328,50 @@ static int splclassloader_register_namespace_single(splclassloader_object *obj, 
         len = ns_len;
     }
 
-    /* should duplicate check ?
-    if (obj->ns && strstr(obj->ns, target)) {
-        if (flag) {
-            efree(target);
-        }
-        return 0;
-    }
-    */
+    prev = target;
+    while((pos = strstr(prev, ":"))) {
+        last = pos - prev;
+        if (pos > prev && splclassloader_is_local_namespace(obj->ns, prev, last TSRMLS_CC)){
+            prev = pos;
+            prev++;
+            continue;
+        } else {
+            if (!last) {
+                prev++;
+                continue;
+            }
 
-    if (obj->ns) {
-        obj->ns = erealloc(obj->ns, obj->ns_len + 1 + len + 1);
-        snprintf(obj->ns + obj->ns_len, len + 2, "%c%s", DEFAULT_DIR_SEPARATOR, target);
-        obj->ns_len = obj->ns_len + len + 1;
+            if (obj->ns) {
+                obj->ns = erealloc(obj->ns, obj->ns_len + 1 + last + 1);
+                snprintf(obj->ns + obj->ns_len, last + 2, "%c%s", DEFAULT_DIR_SEPARATOR, prev);
+                obj->ns_len = obj->ns_len + last + 1;
+            } else {
+                obj->ns = estrndup(prev, last);
+                obj->ns_len = last;
+            }
+        }
+        prev = pos;
+        prev++;
+    }
+
+    if (prev > target) {
+        last = len + (target - prev);
+        if (last > 0 && !splclassloader_is_local_namespace(obj->ns, prev, last TSRMLS_CC)) {
+            obj->ns = erealloc(obj->ns, obj->ns_len + 1 + last + 1);
+            snprintf(obj->ns + obj->ns_len, last + 2, "%c%s", DEFAULT_DIR_SEPARATOR, prev);
+            obj->ns_len = obj->ns_len + last + 1;
+        }
     } else {
-        obj->ns = estrndup(target, len);
-        obj->ns_len = len;
+        if (obj->ns) {
+            if (!splclassloader_is_local_namespace(obj->ns, target, len TSRMLS_CC)) {
+                obj->ns = erealloc(obj->ns, obj->ns_len + 1 + len + 1);
+                snprintf(obj->ns + obj->ns_len, len + 2, "%c%s", DEFAULT_DIR_SEPARATOR, target);
+                obj->ns_len = obj->ns_len + len + 1;
+            }
+        } else {
+            obj->ns = estrndup(target, len);
+            obj->ns_len = len;
+        }
     }
 
     if (flag) {
@@ -359,25 +387,38 @@ static int splclassloader_register_namespace_single(splclassloader_object *obj, 
 */
 PHP_METHOD(SplClassLoader, __construct)
 {
-    char *ns = NULL;
-    int  ns_len = 0;
+    zval *ns = NULL;
     char *inc_path = NULL;
     int  inc_path_len = 0;
     splclassloader_object *obj;
 
-    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|ss", &ns, &ns_len, &inc_path, &inc_path_len)) {
+    if (FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|zs", &ns, &inc_path, &inc_path_len)) {
         return; /* should throw ? */
     }
 
     obj = (splclassloader_object *) zend_object_store_get_object(getThis() TSRMLS_CC);
 
-    if (ns_len) {
-        char *target = namespace_dir_separator(ns, ns_len TSRMLS_CC);
-        uint len = strlen(target);
-        obj->ns = estrndup(target, len);
-        obj->ns_len = len;
-        efree(target);
+    if (IS_STRING == Z_TYPE_P(ns) && Z_STRLEN_P(ns)) {
+            splclassloader_register_namespace_single(obj, Z_STRVAL_P(ns), Z_STRLEN_P(ns) TSRMLS_CC);
+        }
+
+    if (IS_ARRAY == Z_TYPE_P(ns)) {
+        zval **ppval;
+        HashTable *ht;
+
+        ht = Z_ARRVAL_P(ns);
+        for (zend_hash_internal_pointer_reset(ht);
+                zend_hash_has_more_elements(ht) == SUCCESS;
+                zend_hash_move_forward(ht)) {
+            if (zend_hash_get_current_data(ht, (void **)&ppval) == FAILURE) {
+                continue;
+            } else if (IS_STRING == Z_TYPE_PP(ppval)) {
+                splclassloader_register_namespace_single(obj, Z_STRVAL_PP(ppval), Z_STRLEN_PP(ppval) TSRMLS_CC);
+            }
+
+        }
     }
+
     if (inc_path_len) {
         obj->inc_path = estrndup(inc_path, inc_path_len);
         obj->inc_path_len = inc_path_len;
