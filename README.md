@@ -58,7 +58,7 @@ class SplClassLoader
     /**
      * 构造方法，实例化一个自动加载器
      *
-     * @param $namespace string 命名空间前缀（多个前缀以英文逗号分隔）
+     * @param $namespace string | array 命名空间前缀（多个前缀以英文逗号分隔）
      * @param $local_library_path string 本地类库全路径
      */
     public function __construct($namespace, $local_library_path){}
